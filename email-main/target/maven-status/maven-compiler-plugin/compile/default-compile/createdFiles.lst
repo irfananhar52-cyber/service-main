@@ -1,0 +1,4 @@
+com\irfan\email\EmailApplication.class
+com\irfan\email\EmailService.class
+com\irfan\email\Order.class
+com\irfan\email\RabbitMQConfig.class

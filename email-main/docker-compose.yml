@@ -1,0 +1,21 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: email-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: email-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
