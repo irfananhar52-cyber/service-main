@@ -1,0 +1,30 @@
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: auth-service
+    ports:
+      - "8091:8091"
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: auth-service-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - auth-service
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: auth-service-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
