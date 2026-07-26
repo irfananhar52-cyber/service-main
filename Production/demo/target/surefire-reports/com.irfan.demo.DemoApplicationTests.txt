@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.irfan.demo.DemoApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.104 s -- in com.irfan.demo.DemoApplicationTests

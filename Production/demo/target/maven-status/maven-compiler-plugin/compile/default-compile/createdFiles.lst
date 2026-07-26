@@ -1,0 +1,5 @@
+com\irfan\demo\ProducerController.class
+com\irfan\demo\DemoApplication.class
+com\irfan\demo\RabbitMQConfig.class
+com\irfan\demo\ProducerService.class
+com\irfan\demo\ConsumerService.class
