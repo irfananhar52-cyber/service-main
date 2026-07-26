@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="order-service"/>
+    <springProperty scope="context" name="elkEnabled" source="logging.logstash.enabled" defaultValue="false"/>
+    <springProperty scope="context" name="elkDestination" source="logging.logstash.destination" defaultValue="localhost:5000"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <logLevel/>
+                <threadName/>
+                <loggerName/>
+                <mdc/>
+                <pattern>
+                    <pattern>
+                        {
+                          "service":"${appName}",
+                          "message":"%message",
+                          "exception":"%exception{10}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <if condition='property("elkEnabled").equals("true")'>
+        <then>
+            <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+                <destination>${elkDestination}</destination>
+                <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                    <providers>
+                        <timestamp>
+                            <timeZone>UTC</timeZone>
+                        </timestamp>
+                        <logLevel/>
+                        <threadName/>
+                        <loggerName/>
+                        <mdc/>
+                        <pattern>
+                            <pattern>
+                                {
+                                  "service":"${appName}",
+                                  "message":"%message",
+                                  "exception":"%exception{10}"
+                                }
+                            </pattern>
+                        </pattern>
+                    </providers>
+                </encoder>
+            </appender>
+
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+                <appender-ref ref="LOGSTASH"/>
+            </root>
+        </then>
+        <else>
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        </else>
+    </if>
+</configuration>

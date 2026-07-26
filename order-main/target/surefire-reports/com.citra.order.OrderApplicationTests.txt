@@ -1,0 +1,11 @@
+-------------------------------------------------------------------------------
+Test set: com.citra.order.OrderApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 1.283 s <<< FAILURE! -- in com.citra.order.OrderApplicationTests
+com.citra.order.OrderApplicationTests.contextLoads -- Time elapsed: 0.024 s <<< ERROR!
+java.lang.Error: 
+Unresolved compilation problem: 
+	The declared package "com.irfan.order" does not match the expected package "com.citra.order"
+
+	at com.citra.order.OrderApplicationTests.<init>(OrderApplicationTests.java:1)
+
