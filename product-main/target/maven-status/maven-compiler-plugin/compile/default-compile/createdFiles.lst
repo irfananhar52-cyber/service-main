@@ -1,0 +1,5 @@
+com\irfan\product\controller\ProductController.class
+com\irfan\product\model\Product.class
+com\irfan\product\ProductApplication.class
+com\irfan\product\services\ProductService.class
+com\irfan\product\repository\ProductRepository.class
