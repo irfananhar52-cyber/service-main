@@ -1,0 +1,5 @@
+com\irfan\cunsumer\MessageListener.class
+com\irfan\cunsumer\RabbitMQConfig.class
+com\irfan\cunsumer\CunsumerApplication.class
+com\irfan\cunsumer\AppStarter.class
+com\irfan\cunsumer\MessageProducer.class
