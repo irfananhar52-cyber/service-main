@@ -1,0 +1,99 @@
+global:
+  scrape_interval: 15s       # Seberapa sering scrape metrics
+  evaluation_interval: 15s   # Seberapa sering evaluasi rules
+  scrape_timeout: 10s
+  external_labels:
+    monitor: 'services-monitor'
+    environment: 'production'
+
+# Alertmanager config
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# ─────────────────────────────────────────
+# SCRAPE CONFIGS
+# ─────────────────────────────────────────
+scrape_configs:
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Host metrics via node-exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Container metrics via cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    metrics_path: /metrics
+
+  # ─── AUTH SERVICE ───────────────────────
+  - job_name: 'auth-service-main'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['auth-service-main:3000']
+        labels:
+          service: 'auth-service-main'
+          team: 'backend'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: job
+        replacement: 'auth-service-main'
+
+  # ─── ORDER SERVICE ──────────────────────
+  - job_name: 'order-main'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['order-main:3000']
+        labels:
+          service: 'order-main'
+          team: 'backend'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: job
+        replacement: 'order-main'
+
+  # ─── EMAIL SERVICE ──────────────────────
+  - job_name: 'email-main'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['email-main:3000']
+        labels:
+          service: 'email-main'
+          team: 'backend'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: job
+        replacement: 'email-main'
+
+  # ─── PRODUCT SERVICE ────────────────────
+  - job_name: 'product-main'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['product-main:3000']
+        labels:
+          service: 'product-main'
+          team: 'backend'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: job
+        replacement: 'product-main'

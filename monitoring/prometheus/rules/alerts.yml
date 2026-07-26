@@ -1,0 +1,137 @@
+groups:
+  # ─────────────────────────────────────────
+  # SERVICE AVAILABILITY ALERTS
+  # ─────────────────────────────────────────
+  - name: service_availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"auth-service-main|order-main|email-main|product-main"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: "Service {{ $labels.job }} (instance {{ $labels.instance }}) telah down lebih dari 1 menit."
+
+      - alert: ServiceHighRestartRate
+        expr: increase(process_start_time_seconds{job=~"auth-service-main|order-main|email-main|product-main"}[5m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.job }} sering restart"
+          description: "Service {{ $labels.job }} sudah restart {{ $value }} kali dalam 5 menit terakhir."
+
+  # ─────────────────────────────────────────
+  # HTTP REQUEST ALERTS
+  # ─────────────────────────────────────────
+  - name: http_requests
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{job=~"auth-service-main|order-main|email-main|product-main", status_code=~"5.."}[5m])
+            /
+            rate(http_requests_total{job=~"auth-service-main|order-main|email-main|product-main"}[5m])
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate tinggi di {{ $labels.job }}"
+          description: "Error rate {{ $labels.job }} mencapai {{ printf \"%.2f\" $value }}% (threshold: 5%) dalam 5 menit terakhir."
+
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{job=~"auth-service-main|order-main|email-main|product-main"}[5m])
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latency P95 tinggi di {{ $labels.job }}"
+          description: "Latency P95 {{ $labels.job }} mencapai {{ printf \"%.2f\" $value }}s (threshold: 2s)."
+
+      - alert: VeryHighRequestLatency
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket{job=~"auth-service-main|order-main|email-main|product-main"}[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Latency P99 kritis di {{ $labels.job }}"
+          description: "Latency P99 {{ $labels.job }} mencapai {{ printf \"%.2f\" $value }}s (threshold: 5s)."
+
+      - alert: HighRequestRate
+        expr: |
+          rate(http_requests_total{job=~"auth-service-main|order-main|email-main|product-main"}[1m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Request rate sangat tinggi di {{ $labels.job }}"
+          description: "Request rate {{ $labels.job }} mencapai {{ printf \"%.0f\" $value }} req/s."
+
+  # ─────────────────────────────────────────
+  # MEMORY ALERTS
+  # ─────────────────────────────────────────
+  - name: memory_alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes{job=~"auth-service-main|order-main|email-main|product-main"}
+            / 1024 / 1024
+          ) > 512
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage tinggi di {{ $labels.job }}"
+          description: "Service {{ $labels.job }} menggunakan {{ printf \"%.0f\" $value }}MB RAM (threshold: 512MB)."
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes{job=~"auth-service-main|order-main|email-main|product-main"}
+            / 1024 / 1024
+          ) > 1024
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory usage kritis di {{ $labels.job }}"
+          description: "Service {{ $labels.job }} menggunakan {{ printf \"%.0f\" $value }}MB RAM (threshold: 1GB)."
+
+  # ─────────────────────────────────────────
+  # NODE.JS EVENT LOOP
+  # ─────────────────────────────────────────
+  - name: nodejs_alerts
+    rules:
+      - alert: EventLoopLagHigh
+        expr: |
+          nodejs_eventloop_lag_seconds{job=~"auth-service-main|order-main|email-main|product-main"} > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Event loop lag tinggi di {{ $labels.job }}"
+          description: "Node.js event loop lag {{ $labels.job }} mencapai {{ printf \"%.3f\" $value }}s (threshold: 500ms)."
+
+      - alert: HeapUsageHigh
+        expr: |
+          (
+            nodejs_heap_size_used_bytes{job=~"auth-service-main|order-main|email-main|product-main"}
+            /
+            nodejs_heap_size_total_bytes{job=~"auth-service-main|order-main|email-main|product-main"}
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Heap usage tinggi di {{ $labels.job }}"
+          description: "Node.js heap usage {{ $labels.job }} mencapai {{ printf \"%.1f\" $value }}% (threshold: 85%)."

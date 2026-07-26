@@ -1,0 +1,177 @@
+version: '3.8'
+
+networks:
+  monitoring:
+    name: monitoring
+    driver: bridge
+  # Shared network agar services bisa di-scrape oleh Prometheus
+  app-network:
+    external: true
+    name: app-network
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+services:
+  # ─────────────────────────────────────────
+  # PROMETHEUS
+  # ─────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '9090:9090'
+    networks:
+      - monitoring
+      - app-network
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:9090/-/healthy']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────
+  # GRAFANA
+  # ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=localhost
+      - GF_SMTP_ENABLED=false
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - '3001:3000'
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────
+  # NODE EXPORTER — Host Metrics (CPU, RAM, Disk)
+  # ─────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - '9100:9100'
+    networks:
+      - monitoring
+    pid: host
+
+  # ─────────────────────────────────────────
+  # CADVISOR — Container Metrics (CPU/Mem per container)
+  # ─────────────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro
+    ports:
+      - '8081:8080'
+    networks:
+      - monitoring
+      - app-network
+
+  # ─────────────────────────────────────────
+  # MOCK SERVICES (simulasi traffic & metrics)
+  # ─────────────────────────────────────────
+  auth-service-main:
+    build: ./mock-service
+    container_name: auth-service-main
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=auth-service-main
+    networks:
+      - monitoring
+      - app-network
+
+  order-main:
+    build: ./mock-service
+    container_name: order-main
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=order-main
+    networks:
+      - monitoring
+      - app-network
+
+  email-main:
+    build: ./mock-service
+    container_name: email-main
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=email-main
+    networks:
+      - monitoring
+      - app-network
+
+  product-main:
+    build: ./mock-service
+    container_name: product-main
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=product-main
+    networks:
+      - monitoring
+      - app-network
+
+  # ─────────────────────────────────────────
+  # ALERTMANAGER — Notifikasi Alert
+  # ─────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - '9093:9093'
+    networks:
+      - monitoring
