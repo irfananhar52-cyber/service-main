@@ -1,0 +1,10 @@
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Log level
+log.level: warn
+
+# Pipeline workers
+pipeline.workers: 2
+pipeline.batch.size: 125
+pipeline.batch.delay: 50

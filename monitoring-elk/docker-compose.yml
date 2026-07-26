@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────
+  # Elasticsearch – penyimpanan log terpusat
+  # ─────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - ES_JAVA_OPTS=${ES_JAVA_OPTS}
+      - cluster.name=microservices-cluster
+      - node.name=elasticsearch-node-1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    networks:
+      - elk
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ─────────────────────────────────────────────
+  # Logstash – parsing & transformasi log
+  # ─────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION}
+    container_name: logstash
+    restart: unless-stopped
+    ports:
+      - "5044:5044"       # Beats input
+      - "5000:5000/tcp"   # TCP input
+      - "5000:5000/udp"   # UDP input
+      - "9600:9600"       # Logstash monitoring API
+    volumes:
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      - LS_JAVA_OPTS=${LS_JAVA_OPTS}
+    networks:
+      - elk
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Kibana – dashboard & visualisasi log
+  # ─────────────────────────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION}
+    container_name: kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - kibana_data:/usr/share/kibana/data
+    networks:
+      - elk
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  # ─────────────────────────────────────────────
+  # Filebeat – log shipper dari Docker containers
+  # ─────────────────────────────────────────────
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION}
+    container_name: filebeat
+    restart: unless-stopped
+    user: root
+    command: filebeat -e --strict.perms=false
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat_data:/usr/share/filebeat/data
+    environment:
+      - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
+      - KIBANA_HOST=${KIBANA_HOST}:${KIBANA_PORT}
+      - LOGSTASH_HOST=${LOGSTASH_HOST}:${LOGSTASH_PORT}
+    networks:
+      - elk
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      logstash:
+        condition: service_started
+
+  # ─────────────────────────────────────────────
+  # Kibana Setup – konfigurasi index pattern & dashboards otomatis
+  # ─────────────────────────────────────────────
+  kibana-setup:
+    image: curlimages/curl:latest
+    container_name: kibana-setup
+    restart: "no"
+    volumes:
+      - ./kibana-setup/setup.sh:/setup.sh:ro
+    entrypoint: ["sh", "/setup.sh"]
+    environment:
+      - KIBANA_HOST=http://kibana:5601
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+    networks:
+      - elk
+    depends_on:
+      kibana:
+        condition: service_healthy
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  kibana_data:
+    driver: local
+  filebeat_data:
+    driver: local
+
+networks:
+  elk:
+    name: elk-monitoring
+    driver: bridge

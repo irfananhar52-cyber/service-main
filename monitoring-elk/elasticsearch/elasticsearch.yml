@@ -1,0 +1,19 @@
+cluster.name: microservices-cluster
+node.name: elasticsearch-node-1
+
+network.host: 0.0.0.0
+http.port: 9200
+
+# Single node setup
+discovery.type: single-node
+
+# Disable security for local monitoring
+xpack.security.enabled: false
+xpack.monitoring.collection.enabled: true
+
+# Index settings
+action.auto_create_index: true
+indices.query.bool.max_clause_count: 10000
+
+# Log settings
+path.logs: /usr/share/elasticsearch/logs

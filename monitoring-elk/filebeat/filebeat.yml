@@ -1,0 +1,63 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      # Hanya monitor 4 service yang ditentukan
+      templates:
+        - condition:
+            or:
+              - contains:
+                  docker.container.name: "auth-service-main"
+              - contains:
+                  docker.container.name: "order-main"
+              - contains:
+                  docker.container.name: "email-main"
+              - contains:
+                  docker.container.name: "product-main"
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              multiline:
+                # Gabungkan baris stack trace Java ke dalam satu event
+                pattern: '^[[:space:]]+(at|\.{3})[[:space:]]|^Caused by:'
+                negate: false
+                match: after
+                max_lines: 50
+                timeout: 5s
+              processors:
+                - add_docker_metadata:
+                    host: "unix:///var/run/docker.sock"
+
+# ── Global processors ────────────────────────────────────────
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - decode_json_fields:
+      fields: ["message"]
+      target: ""
+      overwrite_keys: false
+      add_error_key: true
+
+# ── Output ke Logstash ───────────────────────────────────────
+output.logstash:
+  hosts: ["${LOGSTASH_HOST}"]
+  loadbalance: true
+  bulk_max_size: 2048
+
+# ── Kibana untuk dashboard setup ────────────────────────────
+setup.kibana:
+  host: "http://${KIBANA_HOST}"
+
+# ── Index template (digunakan oleh Logstash) ────────────────
+setup.template.enabled: false
+
+# ── Logging ─────────────────────────────────────────────────
+logging.level: warning
+logging.to_files: false
+
+# ── Queue ────────────────────────────────────────────────────
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 5s

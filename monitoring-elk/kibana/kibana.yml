@@ -1,0 +1,15 @@
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.requestTimeout: 60000
+
+# Logging
+logging.root.level: warn
+
+# Disable telemetry
+telemetry.enabled: false
+
+# i18n (opsional, ganti ke id untuk Bahasa Indonesia)
+i18n.locale: "en"
